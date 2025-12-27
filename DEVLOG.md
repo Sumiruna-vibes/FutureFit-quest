@@ -30,3 +30,15 @@ We implemented a "Vault" class with three safety features:
 - **Why it matters:** We separate "What happened" (Events) from "What it means" (Score/State). This allows us to change scoring rules later without losing history.
 - **Verification:** Ran `test_events.js`. Confirmed metadata (timestamps) and user filtering works.
 - **Next Up:** The "Brain" (Policy Engine) to calculate user state from these events.
+## Chapter 3 Complete: The Logic Brain
+- **Status:** ✅ Operational
+- **Key Achievement:** Implemented `ProgressService` to derive user state (XP, Streak) from the raw event stream.
+- **Why it matters:** Logic is decoupled from storage. If we want to change the "Streak" rules later (e.g., allow 1 miss), we just update the function, and it retroactively fixes everyone's history.
+- **Verification:** Ran `test_logic.js`. Confirmed XP math and streak resetting logic work perfectly.
+- **Next Up:** The Policy Engine (The Bouncer) to control what unlocks next.
+## Chapter 3 Complete: The Logic Brain
+- **Status:** ✅ Operational
+- **Key Achievement:** Implemented `ProgressService` to derive user state (XP, Streak) from the raw event stream.
+- **Why it matters:** Logic is decoupled from storage. If we want to change the "Streak" rules later (e.g., allow 1 miss), we just update the function, and it retroactively fixes everyone's history.
+- **Verification:** Ran `test_logic.js`. Confirmed XP math and streak resetting logic work perfectly.
+- **Next Up:** The Policy Engine (The Bouncer) to control what unlocks next.
