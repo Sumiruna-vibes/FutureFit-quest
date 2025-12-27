@@ -24,3 +24,9 @@ We implemented a "Vault" class with three safety features:
 - **Key Achievement:** Implemented a crash-resistant storage class using the Transaction Pattern.
 - **Verification:** Ran `test_storage.js`. Successfully saved events, detected 100% of data corruption attempts.
 - **Next Up:** Building the Event Stream to record user actions.
+## Chapter 2 Complete: The Event Stream
+- **Status:** ✅ Operational
+- **Key Achievement:** Created `EventManager` to standardize user actions into an "Event Sourcing" pattern.
+- **Why it matters:** We separate "What happened" (Events) from "What it means" (Score/State). This allows us to change scoring rules later without losing history.
+- **Verification:** Ran `test_events.js`. Confirmed metadata (timestamps) and user filtering works.
+- **Next Up:** The "Brain" (Policy Engine) to calculate user state from these events.
