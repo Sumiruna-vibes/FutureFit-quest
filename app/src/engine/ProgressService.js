@@ -1,4 +1,4 @@
-// src/data/ProgressService.js
+// app/src/engine/ProgressService.js
 
 /**
  * 🎓 LESSON: STATE DERIVATION
@@ -91,4 +91,11 @@ class ProgressService {
     }
 }
 
-export default ProgressService;
+// 🎓 SINGLETON PATTERN: Create one instance for the entire app
+const progressService = new ProgressService();
+
+// Export the instance as default (for React components)
+export default progressService;
+
+// Export the class as a named export (for tests)
+export { ProgressService };

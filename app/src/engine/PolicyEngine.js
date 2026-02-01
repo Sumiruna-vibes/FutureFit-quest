@@ -1,5 +1,5 @@
-// src/data/PolicyEngine.js
-import SkillTree from './SkillTree';
+// app/src/engine/PolicyEngine.js
+import SkillTree from './SkillTree.js'; // ✅ Added .js extension
 
 /**
  * 🎓 LESSON: ACCESS CONTROL (THE BOUNCER)
@@ -11,10 +11,19 @@ import SkillTree from './SkillTree';
  */
 
 class PolicyEngine {
-    constructor(userProfile = {}) {
+    constructor() {
         this.tree = SkillTree;
-        // Check if user has special architect privileges
+        // Default: not in developer mode
+        this.isDeveloper = false;
+    }
+
+    /**
+     * 🎓 NEW: Configure the policy engine at runtime
+     * Allows toggling developer mode without recreating the instance
+     */
+    configure(userProfile = {}) {
         this.isDeveloper = userProfile.isDeveloper || false;
+        return this; // Allow chaining: policyEngine.configure({...})
     }
 
     /**
@@ -61,4 +70,11 @@ class PolicyEngine {
     }
 }
 
-export default PolicyEngine;
+// 🎓 SINGLETON PATTERN: Create one instance for the entire app
+const policyEngine = new PolicyEngine();
+
+// Export the instance as default (for React components)
+export default policyEngine;
+
+// Export the class as a named export (for tests)
+export { PolicyEngine };

@@ -162,7 +162,18 @@ class SafeLocalStorage {
     }
 }
 
-// 🎓 Exporting this so other files can use it
-// Using ES module syntax to match app/src/engine pattern
-export default SafeLocalStorage;
+// 🎓 SINGLETON PATTERN (Browser-safe)
+// Only create singleton in browser environment
+let storage = null;
+
+if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    // We're in a browser with localStorage available
+    storage = new SafeLocalStorage('ffq_v1');
+}
+
+// Export singleton instance as default (null in Node.js)
+export default storage;
+
+// Export class as named export (for tests)
+export { SafeLocalStorage };
 
