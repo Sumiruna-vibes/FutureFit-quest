@@ -1,0 +1,1101 @@
+// app/src/engine/SkillTree.js
+/**
+ * SKILLTREE v2.0 - Content Graph Implementation
+ * 
+ * ARCHITECTURE COMPLIANT: Implements the Content Graph Service from Architecture.pdf
+ * - Nodes as DAG (Directed Acyclic Graph) with prerequisites
+ * - Structured question metadata for Assessment Engine
+ * - Skill mastery targets for Policy Engine
+ * - Configurable XP and difficulty levels
+ * 
+ * DESIGN PATTERNS:
+ * - Single source of truth for content
+ * - Immutable node definitions (versioned)
+ * - Separation of content structure from assessment logic
+ * - Support for multiple content types (video, quiz, practice, project)
+ * 
+ * V1.0 PREPARED: Includes fields needed for Assessment Engine (rubrics, acceptable variants)
+ * 
+ * REFERENCES:
+ * - Khan Academy Mastery Levels (Familiar → Proficient → Mastered)
+ * - Duolingo Skill Tree structure
+ * - Coursera mastery learning patterns
+ * - Moodle question type definitions
+ */
+
+const SkillTree = {
+  // ==================== TREE STRUCTURE ====================
+  // Version for engine compatibility
+  version: '2.0',
+  
+  // Tree metadata
+  tree: {
+    id: 'futurefit_quest_v1',
+    title: 'FutureFit Quest: AI & Learning Engineering',
+    description: 'A comprehensive journey from beginner to expert in AI-powered learning systems',
+    totalXp: 1000,
+    estimatedHours: 40,
+    targetAudience: ['educators', 'instructional_designers', 'edtech_developers'],
+    
+    // Mastery system (Khan Academy inspired)
+    masteryLevels: {
+      FAMILIAR: { threshold: 0.7, color: '#4CAF50', description: 'Basic understanding' },
+      PROFICIENT: { threshold: 0.85, color: '#2196F3', description: 'Working knowledge' },
+      MASTERED: { threshold: 0.95, color: '#9C27B0', description: 'Deep expertise' }
+    }
+  },
+  
+  // ==================== NODE DEFINITIONS ====================
+  nodes: {
+    // ========== TREE 1: FOUNDATIONS ==========
+    'tree1_root': {
+      id: 'tree1_root',
+      title: 'AI Learning Foundations',
+      description: 'Core concepts of AI-powered education systems',
+      type: 'chapter',
+      icon: '🏛️',
+      xpReward: 0,
+      unlockRequirements: [],
+      skills: ['ai_fundamentals', 'learning_science']
+    },
+    
+    'tree1_branch1_leaf1': {
+      id: 'tree1_branch1_leaf1',
+      title: 'Understanding Context Windows',
+      description: 'Learn how LLMs process information within token limits',
+      type: 'video',
+      duration: 600, // seconds
+      contentUrl: '/content/context-windows.mp4',
+      xpReward: 25,
+      unlockRequirements: ['tree1_root'],
+      skills: ['context_awareness', 'token_management'],
+      metadata: {
+        creator: 'Dr. Elena Chen',
+        lastUpdated: '2024-12-15',
+        difficulty: 'beginner',
+        tags: ['llm', 'tokens', 'architecture']
+      }
+    },
+    
+    'tree1_branch1_leaf2': {
+      id: 'tree1_branch1_leaf2',
+      title: 'Context Window Quiz',
+      description: 'Test your understanding of token limitations',
+      type: 'quiz',
+      xpReward: 30,
+      unlockRequirements: ['tree1_branch1_leaf1'],
+      skills: ['context_awareness', 'problem_solving'],
+      
+      // QUESTION METADATA (for Assessment Engine v1.0)
+      question: {
+        type: 'multiple_choice',
+        prompt: 'What is the primary limitation of context windows in LLMs?',
+        promptDetails: 'Consider both technical and practical implications',
+        
+        // Multiple options with detailed feedback
+        options: [
+          {
+            id: 'A',
+            text: 'They require expensive GPU hardware',
+            feedback: 'While GPUs are used, this is not the primary limitation of context windows themselves.',
+            misconceptionCode: 'HARDWARE_CONFUSION'
+          },
+          {
+            id: 'B',
+            text: 'They truncate long documents, potentially losing important context',
+            correct: true,
+            feedback: 'Correct! Context windows have fixed token limits, so long inputs get truncated.',
+            explanation: 'This limitation requires strategic document chunking and summarization techniques.'
+          },
+          {
+            id: 'C',
+            text: 'They cannot process mathematical equations',
+            feedback: 'LLMs can process mathematical notation; this is not a context window limitation.',
+            misconceptionCode: 'MATH_CAPABILITY_MISUNDERSTANDING'
+          },
+          {
+            id: 'D',
+            text: 'They only work with English language inputs',
+            feedback: 'Modern LLMs are multilingual; language support is not a context window limitation.',
+            misconceptionCode: 'LINGUISTIC_LIMITATION_CONFUSION'
+          }
+        ],
+        
+        // For Assessment Engine v1.0
+        rubric: {
+          criteria: [
+            {
+              name: 'technical_accuracy',
+              weight: 0.7,
+              description: 'Correctly identifies the token limitation aspect'
+            },
+            {
+              name: 'practical_implication',
+              weight: 0.3,
+              description: 'Recognizes the impact on document processing'
+            }
+          ],
+          passingScore: 0.85
+        },
+        
+        // Acceptable variants for semantic matching (v1.0)
+        acceptableVariants: [
+          'truncates long documents',
+          'cuts off text after token limit',
+          'has fixed input length restriction',
+          'cannot process extremely long texts'
+        ],
+        
+        // Time-based scoring (Duolingo inspired)
+        timeBonus: {
+          thresholdMs: 30000, // 30 seconds for full bonus
+          maxBonus: 5
+        },
+        
+        // Spaced repetition settings
+        reviewSettings: {
+          initialInterval: 86400000, // 1 day in ms
+          easeFactor: 2.5,
+          halfLife: 604800000 // 7 days in ms
+        }
+      }
+    },
+    
+    'tree1_branch1_leaf3': {
+      id: 'tree1_branch1_leaf3',
+      title: 'Practical Chunking Exercise',
+      description: 'Apply context window knowledge to real document processing',
+      type: 'practice',
+      xpReward: 40,
+      unlockRequirements: ['tree1_branch1_leaf2'],
+      skills: ['context_awareness', 'practical_application'],
+      
+      question: {
+        type: 'open_ended',
+        prompt: 'Describe a strategy for processing a 100-page PDF with a 4000-token context window.',
+        expectedConcepts: ['chunking', 'summarization', 'hierarchical_processing'],
+        
+        rubric: {
+          criteria: [
+            {
+              name: 'chunking_strategy',
+              weight: 0.4,
+              description: 'Describes logical document segmentation'
+            },
+            {
+              name: 'context_preservation',
+              weight: 0.3,
+              description: 'Maintains context across chunks'
+            },
+            {
+              name: 'practical_considerations',
+              weight: 0.3,
+              description: 'Considers real-world constraints'
+            }
+          ],
+          passingScore: 0.7
+        },
+        
+        // For semantic grading (v1.0)
+        referenceEmbeddings: [
+          'chunk_document_into_sections',
+          'use_overlapping_chunks',
+          'create_hierarchical_summary',
+          'maintain_context_with_summaries'
+        ],
+        
+        // Known misconception patterns
+        knownMisconceptions: [
+          {
+            code: 'EQUAL_CHUNKS',
+            pattern: 'equal.*chunk.*size',
+            feedback: 'Equal chunk sizes may cut sentences mid-way. Consider semantic boundaries instead.'
+          },
+          {
+            code: 'NO_OVERLAP',
+            pattern: 'no.*overlap|separate.*chunks',
+            feedback: 'Without overlap, context may be lost between chunks. Try 10-15% overlap.'
+          }
+        ]
+      }
+    },
+    
+    // ========== TREE 2: ARCHITECTURE ==========
+    'tree2_root': {
+      id: 'tree2_root',
+      title: 'System Architecture Design',
+      description: 'Building robust educational platforms',
+      type: 'chapter',
+      icon: '🏗️',
+      xpReward: 0,
+      unlockRequirements: ['tree1_branch1_leaf3'], // Requires completion of first tree
+      skills: ['system_design', 'architecture_patterns']
+    },
+    
+    'tree2_branch1_leaf1': {
+      id: 'tree2_branch1_leaf1',
+      title: 'Event Sourcing Fundamentals',
+      description: 'Learn append-only event patterns for reliable state management',
+      type: 'video',
+      duration: 720,
+      contentUrl: '/content/event-sourcing.mp4',
+      xpReward: 35,
+      unlockRequirements: ['tree2_root'],
+      skills: ['state_management', 'data_persistence'],
+      metadata: {
+        creator: 'Alex Rivera',
+        lastUpdated: '2024-12-20',
+        difficulty: 'intermediate',
+        tags: ['architecture', 'events', 'immutability']
+      }
+    },
+    
+    // ========== PROJECT NODES ==========
+    'project1': {
+      id: 'project1',
+      title: 'Build a Simple Quiz Engine',
+      description: 'Apply event sourcing to create a reliable quiz system',
+      type: 'project',
+      xpReward: 100,
+      unlockRequirements: ['tree2_branch1_leaf1', 'tree1_branch1_leaf3'],
+      skills: ['implementation', 'testing', 'documentation'],
+      projectRequirements: {
+        minimumFiles: 3,
+        testCoverage: 0.8,
+        documentationRequired: true,
+        estimatedHours: 4
+      }
+    },
+    
+    // ========== REVIEW NODES (Spiral Learning) ==========
+    'review_mastery_challenge_1': {
+      id: 'review_mastery_challenge_1',
+      title: 'Foundations Mastery Challenge',
+      description: 'Review key concepts from Tree 1 to solidify mastery',
+      type: 'review',
+      xpReward: 50,
+      unlockRequirements: ['tree1_branch1_leaf3'], // Available after completing first branch
+      skills: ['context_awareness', 'problem_solving', 'practical_application'],
+      
+      // Khan Academy Mastery Challenge pattern
+      challengeStructure: {
+        totalQuestions: 6,
+        skillsPerChallenge: 2,
+        questionsPerSkill: 3,
+        masteryRules: {
+          levelUp: 'score >= 5/6',
+          levelDown: 'score <= 2/6',
+          maintain: 'score 3-4/6'
+        }
+      },
+      
+      questionPool: [
+        'tree1_branch1_leaf2',
+        'tree1_branch1_leaf3'
+        // More questions can be added dynamically
+      ]
+    }
+  },
+  
+  // ==================== GRAPH EDGES (DAG) ====================
+  edges: [
+    // Tree 1 structure
+    { from: 'tree1_root', to: 'tree1_branch1_leaf1', type: 'prerequisite' },
+    { from: 'tree1_branch1_leaf1', to: 'tree1_branch1_leaf2', type: 'prerequisite' },
+    { from: 'tree1_branch1_leaf2', to: 'tree1_branch1_leaf3', type: 'prerequisite' },
+    
+    // Cross-tree prerequisites (inter-tree dependencies)
+    { from: 'tree1_branch1_leaf3', to: 'tree2_root', type: 'cross_tree_prerequisite' },
+    
+    // Tree 2 structure
+    { from: 'tree2_root', to: 'tree2_branch1_leaf1', type: 'prerequisite' },
+    
+    // Project dependencies
+    { from: 'tree2_branch1_leaf1', to: 'project1', type: 'required_skill' },
+    { from: 'tree1_branch1_leaf3', to: 'project1', type: 'required_skill' },
+    
+    // Review/remediation edges (Architecture.pdf Section 3)
+    { 
+      from: 'tree1_branch1_leaf2', 
+      to: 'tree1_branch1_leaf1', 
+      type: 'remediation',
+      condition: 'score < 0.7',
+      description: 'Review context window fundamentals'
+    },
+    { 
+      from: 'review_mastery_challenge_1', 
+      to: 'tree1_branch1_leaf2', 
+      type: 'spiral_review',
+      condition: 'days_since_completion > 7',
+      description: 'Spaced repetition review'
+    }
+  ],
+  
+  // ==================== SKILL DEFINITIONS ====================
+  skills: {
+    'context_awareness': {
+      id: 'context_awareness',
+      name: 'Context Awareness',
+      description: 'Understanding and managing LLM context limitations',
+      category: 'technical',
+      difficulty: 'beginner',
+      maxLevel: 5,
+      icon: '🎯'
+    },
+    
+    'token_management': {
+      id: 'token_management',
+      name: 'Token Management',
+      description: 'Strategies for efficient token usage',
+      category: 'technical',
+      difficulty: 'intermediate',
+      maxLevel: 5,
+      icon: '⚖️'
+    },
+    
+    'problem_solving': {
+      id: 'problem_solving',
+      name: 'Problem Solving',
+      description: 'Analytical thinking for system design',
+      category: 'cognitive',
+      difficulty: 'intermediate',
+      maxLevel: 10,
+      icon: '🧩'
+    },
+    
+    'system_design': {
+      id: 'system_design',
+      name: 'System Design',
+      description: 'Architecting robust software systems',
+      category: 'technical',
+      difficulty: 'advanced',
+      maxLevel: 10,
+      icon: '🏗️'
+    }
+  },
+  
+  // ==================== PUBLIC METHODS ====================
+  
+  /**
+   * Get node by ID with all metadata
+   * @param {string} nodeId 
+   * @returns {Object|null} Node definition
+   */
+  getNode: function(nodeId) {
+    return this.nodes[nodeId] || null;
+  },
+  
+  /**
+   * Get all prerequisite nodes for a given node
+   * @param {string} nodeId 
+   * @returns {Array} List of prerequisite node IDs
+   */
+  getPrerequisites: function(nodeId) {
+    return this.edges
+      .filter(edge => edge.to === nodeId && edge.type === 'prerequisite')
+      .map(edge => edge.from);
+  },
+  
+  /**
+   * Get all nodes that depend on this node
+   * @param {string} nodeId 
+   * @returns {Array} List of dependent node IDs
+   */
+  getDependents: function(nodeId) {
+    return this.edges
+      .filter(edge => edge.from === nodeId)
+      .map(edge => edge.to);
+  },
+  
+  /**
+   * Check if node is available given completed nodes
+   * @param {string} nodeId 
+   * @param {Array} completedNodeIds 
+   * @returns {boolean} True if all prerequisites met
+   */
+  isNodeAvailable: function(nodeId, completedNodeIds) {
+    const node = this.getNode(nodeId);
+    if (!node) return false;
+    
+    // Check explicit unlock requirements
+    const hasAllRequirements = node.unlockRequirements.every(req => 
+      completedNodeIds.includes(req)
+    );
+    
+    if (!hasAllRequirements) return false;
+    
+    // Check edge-based prerequisites
+    const prerequisites = this.getPrerequisites(nodeId);
+    return prerequisites.every(prereq => completedNodeIds.includes(prereq));
+  },
+  
+  /**
+   * Get next available nodes (Policy Engine helper)
+   * @param {Array} completedNodeIds 
+   * @returns {Array} Available node objects
+   */
+  getAvailableNodes: function(completedNodeIds) {
+    return Object.values(this.nodes).filter(node => {
+      // Don't return already completed nodes
+      if (completedNodeIds.includes(node.id)) return false;
+      
+      // Don't return chapter nodes as "next" (they're organizational)
+      if (node.type === 'chapter') return false;
+      
+      return this.isNodeAvailable(node.id, completedNodeIds);
+    });
+  },
+  
+  /**
+   * Get skill targets for a node
+   * @param {string} nodeId 
+   * @returns {Array} Skill IDs targeted by this node
+   */
+  getNodeSkills: function(nodeId) {
+    const node = this.getNode(nodeId);
+    return node?.skills || [];
+  },
+  
+  /**
+   * Get all nodes that target a specific skill
+   * @param {string} skillId 
+   * @returns {Array} Node IDs that target this skill
+   */
+  getNodesForSkill: function(skillId) {
+    return Object.values(this.nodes)
+      .filter(node => node.skills?.includes(skillId))
+      .map(node => node.id);
+  },
+  
+  /**
+   * Calculate XP required for next level (simple progression)
+   * @param {number} currentLevel 
+   * @returns {number} XP needed for next level
+   */
+  getXpForNextLevel: function(currentLevel) {
+    // Simple exponential progression (adjust as needed)
+    return Math.floor(100 * Math.pow(1.5, currentLevel - 1));
+  },
+  
+  /**
+   * Get correct answer for assessment (v0.1 compatibility)
+   * @param {string} nodeId 
+   * @returns {any} Correct answer based on question type
+   */
+  getCorrectAnswer: function(nodeId) {
+    const node = this.getNode(nodeId);
+    if (!node?.question) return null;
+    
+    // For multiple choice, return correct option ID
+    if (node.question.type === 'multiple_choice') {
+      const correctOption = node.question.options.find(opt => opt.correct);
+      return correctOption?.id || null;
+    }
+    
+    // For open-ended, return rubric criteria
+    if (node.question.type === 'open_ended') {
+      return {
+        expectedConcepts: node.question.expectedConcepts,
+        rubric: node.question.rubric
+      };
+    }
+    
+    return null;
+  },
+  
+  /**
+   * Get feedback for specific answer (v1.0 preparation)
+   * @param {string} nodeId 
+   * @param {string} answerId - For MC, the selected option ID
+   * @returns {Object} Feedback data
+   */
+  getAnswerFeedback: function(nodeId, answerId) {
+    const node = this.getNode(nodeId);
+    if (!node?.question) return null;
+    
+    if (node.question.type === 'multiple_choice') {
+      const option = node.question.options.find(opt => opt.id === answerId);
+      return option ? {
+        isCorrect: option.correct || false,
+        feedback: option.feedback || '',
+        misconceptionCode: option.misconceptionCode || null,
+        explanation: option.explanation || ''
+      } : null;
+    }
+    
+    return null;
+  },
+  
+  /**
+   * Export tree structure for persistence
+   * @returns {Object} Serializable tree structure
+   */
+  export: function() {
+    return {
+      version: this.version,
+      tree: this.tree,
+      nodes: this.nodes,
+      edges: this.edges,
+      skills: this.skills,
+      exportedAt: new Date().toISOString()
+    };
+  }
+};
+
+// Freeze to prevent accidental mutations
+Object.freeze(SkillTree.nodes);
+Object.freeze(SkillTree.edges);
+Object.freeze(SkillTree.skills);
+Object.freeze(SkillTree.tree);
+
+export default SkillTree;// app/src/engine/SkillTree.js
+/**
+ * SKILLTREE v2.0 - Content Graph Implementation
+ * 
+ * ARCHITECTURE COMPLIANT: Implements the Content Graph Service from Architecture.pdf
+ * - Nodes as DAG (Directed Acyclic Graph) with prerequisites
+ * - Structured question metadata for Assessment Engine
+ * - Skill mastery targets for Policy Engine
+ * - Configurable XP and difficulty levels
+ * 
+ * DESIGN PATTERNS:
+ * - Single source of truth for content
+ * - Immutable node definitions (versioned)
+ * - Separation of content structure from assessment logic
+ * - Support for multiple content types (video, quiz, practice, project)
+ * 
+ * V1.0 PREPARED: Includes fields needed for Assessment Engine (rubrics, acceptable variants)
+ * 
+ * REFERENCES:
+ * - Khan Academy Mastery Levels (Familiar → Proficient → Mastered)
+ * - Duolingo Skill Tree structure
+ * - Coursera mastery learning patterns
+ * - Moodle question type definitions
+ */
+
+const SkillTree = {
+  // ==================== TREE STRUCTURE ====================
+  // Version for engine compatibility
+  version: '2.0',
+  
+  // Tree metadata
+  tree: {
+    id: 'futurefit_quest_v1',
+    title: 'FutureFit Quest: AI & Learning Engineering',
+    description: 'A comprehensive journey from beginner to expert in AI-powered learning systems',
+    totalXp: 1000,
+    estimatedHours: 40,
+    targetAudience: ['educators', 'instructional_designers', 'edtech_developers'],
+    
+    // Mastery system (Khan Academy inspired)
+    masteryLevels: {
+      FAMILIAR: { threshold: 0.7, color: '#4CAF50', description: 'Basic understanding' },
+      PROFICIENT: { threshold: 0.85, color: '#2196F3', description: 'Working knowledge' },
+      MASTERED: { threshold: 0.95, color: '#9C27B0', description: 'Deep expertise' }
+    }
+  },
+  
+  // ==================== NODE DEFINITIONS ====================
+  nodes: {
+    // ========== TREE 1: FOUNDATIONS ==========
+    'tree1_root': {
+      id: 'tree1_root',
+      title: 'AI Learning Foundations',
+      description: 'Core concepts of AI-powered education systems',
+      type: 'chapter',
+      icon: '🏛️',
+      xpReward: 0,
+      unlockRequirements: [],
+      skills: ['ai_fundamentals', 'learning_science']
+    },
+    
+    'tree1_branch1_leaf1': {
+      id: 'tree1_branch1_leaf1',
+      title: 'Understanding Context Windows',
+      description: 'Learn how LLMs process information within token limits',
+      type: 'video',
+      duration: 600, // seconds
+      contentUrl: '/content/context-windows.mp4',
+      xpReward: 25,
+      unlockRequirements: ['tree1_root'],
+      skills: ['context_awareness', 'token_management'],
+      metadata: {
+        creator: 'Dr. Elena Chen',
+        lastUpdated: '2024-12-15',
+        difficulty: 'beginner',
+        tags: ['llm', 'tokens', 'architecture']
+      }
+    },
+    
+    'tree1_branch1_leaf2': {
+      id: 'tree1_branch1_leaf2',
+      title: 'Context Window Quiz',
+      description: 'Test your understanding of token limitations',
+      type: 'quiz',
+      xpReward: 30,
+      unlockRequirements: ['tree1_branch1_leaf1'],
+      skills: ['context_awareness', 'problem_solving'],
+      
+      // QUESTION METADATA (for Assessment Engine v1.0)
+      question: {
+        type: 'multiple_choice',
+        prompt: 'What is the primary limitation of context windows in LLMs?',
+        promptDetails: 'Consider both technical and practical implications',
+        
+        // Multiple options with detailed feedback
+        options: [
+          {
+            id: 'A',
+            text: 'They require expensive GPU hardware',
+            feedback: 'While GPUs are used, this is not the primary limitation of context windows themselves.',
+            misconceptionCode: 'HARDWARE_CONFUSION'
+          },
+          {
+            id: 'B',
+            text: 'They truncate long documents, potentially losing important context',
+            correct: true,
+            feedback: 'Correct! Context windows have fixed token limits, so long inputs get truncated.',
+            explanation: 'This limitation requires strategic document chunking and summarization techniques.'
+          },
+          {
+            id: 'C',
+            text: 'They cannot process mathematical equations',
+            feedback: 'LLMs can process mathematical notation; this is not a context window limitation.',
+            misconceptionCode: 'MATH_CAPABILITY_MISUNDERSTANDING'
+          },
+          {
+            id: 'D',
+            text: 'They only work with English language inputs',
+            feedback: 'Modern LLMs are multilingual; language support is not a context window limitation.',
+            misconceptionCode: 'LINGUISTIC_LIMITATION_CONFUSION'
+          }
+        ],
+        
+        // For Assessment Engine v1.0
+        rubric: {
+          criteria: [
+            {
+              name: 'technical_accuracy',
+              weight: 0.7,
+              description: 'Correctly identifies the token limitation aspect'
+            },
+            {
+              name: 'practical_implication',
+              weight: 0.3,
+              description: 'Recognizes the impact on document processing'
+            }
+          ],
+          passingScore: 0.85
+        },
+        
+        // Acceptable variants for semantic matching (v1.0)
+        acceptableVariants: [
+          'truncates long documents',
+          'cuts off text after token limit',
+          'has fixed input length restriction',
+          'cannot process extremely long texts'
+        ],
+        
+        // Time-based scoring (Duolingo inspired)
+        timeBonus: {
+          thresholdMs: 30000, // 30 seconds for full bonus
+          maxBonus: 5
+        },
+        
+        // Spaced repetition settings
+        reviewSettings: {
+          initialInterval: 86400000, // 1 day in ms
+          easeFactor: 2.5,
+          halfLife: 604800000 // 7 days in ms
+        }
+      }
+    },
+    
+    'tree1_branch1_leaf3': {
+      id: 'tree1_branch1_leaf3',
+      title: 'Practical Chunking Exercise',
+      description: 'Apply context window knowledge to real document processing',
+      type: 'practice',
+      xpReward: 40,
+      unlockRequirements: ['tree1_branch1_leaf2'],
+      skills: ['context_awareness', 'practical_application'],
+      
+      question: {
+        type: 'open_ended',
+        prompt: 'Describe a strategy for processing a 100-page PDF with a 4000-token context window.',
+        expectedConcepts: ['chunking', 'summarization', 'hierarchical_processing'],
+        
+        rubric: {
+          criteria: [
+            {
+              name: 'chunking_strategy',
+              weight: 0.4,
+              description: 'Describes logical document segmentation'
+            },
+            {
+              name: 'context_preservation',
+              weight: 0.3,
+              description: 'Maintains context across chunks'
+            },
+            {
+              name: 'practical_considerations',
+              weight: 0.3,
+              description: 'Considers real-world constraints'
+            }
+          ],
+          passingScore: 0.7
+        },
+        
+        // For semantic grading (v1.0)
+        referenceEmbeddings: [
+          'chunk_document_into_sections',
+          'use_overlapping_chunks',
+          'create_hierarchical_summary',
+          'maintain_context_with_summaries'
+        ],
+        
+        // Known misconception patterns
+        knownMisconceptions: [
+          {
+            code: 'EQUAL_CHUNKS',
+            pattern: 'equal.*chunk.*size',
+            feedback: 'Equal chunk sizes may cut sentences mid-way. Consider semantic boundaries instead.'
+          },
+          {
+            code: 'NO_OVERLAP',
+            pattern: 'no.*overlap|separate.*chunks',
+            feedback: 'Without overlap, context may be lost between chunks. Try 10-15% overlap.'
+          }
+        ]
+      }
+    },
+    
+    // ========== TREE 2: ARCHITECTURE ==========
+    'tree2_root': {
+      id: 'tree2_root',
+      title: 'System Architecture Design',
+      description: 'Building robust educational platforms',
+      type: 'chapter',
+      icon: '🏗️',
+      xpReward: 0,
+      unlockRequirements: ['tree1_branch1_leaf3'], // Requires completion of first tree
+      skills: ['system_design', 'architecture_patterns']
+    },
+    
+    'tree2_branch1_leaf1': {
+      id: 'tree2_branch1_leaf1',
+      title: 'Event Sourcing Fundamentals',
+      description: 'Learn append-only event patterns for reliable state management',
+      type: 'video',
+      duration: 720,
+      contentUrl: '/content/event-sourcing.mp4',
+      xpReward: 35,
+      unlockRequirements: ['tree2_root'],
+      skills: ['state_management', 'data_persistence'],
+      metadata: {
+        creator: 'Alex Rivera',
+        lastUpdated: '2024-12-20',
+        difficulty: 'intermediate',
+        tags: ['architecture', 'events', 'immutability']
+      }
+    },
+    
+    // ========== PROJECT NODES ==========
+    'project1': {
+      id: 'project1',
+      title: 'Build a Simple Quiz Engine',
+      description: 'Apply event sourcing to create a reliable quiz system',
+      type: 'project',
+      xpReward: 100,
+      unlockRequirements: ['tree2_branch1_leaf1', 'tree1_branch1_leaf3'],
+      skills: ['implementation', 'testing', 'documentation'],
+      projectRequirements: {
+        minimumFiles: 3,
+        testCoverage: 0.8,
+        documentationRequired: true,
+        estimatedHours: 4
+      }
+    },
+    
+    // ========== REVIEW NODES (Spiral Learning) ==========
+    'review_mastery_challenge_1': {
+      id: 'review_mastery_challenge_1',
+      title: 'Foundations Mastery Challenge',
+      description: 'Review key concepts from Tree 1 to solidify mastery',
+      type: 'review',
+      xpReward: 50,
+      unlockRequirements: ['tree1_branch1_leaf3'], // Available after completing first branch
+      skills: ['context_awareness', 'problem_solving', 'practical_application'],
+      
+      // Khan Academy Mastery Challenge pattern
+      challengeStructure: {
+        totalQuestions: 6,
+        skillsPerChallenge: 2,
+        questionsPerSkill: 3,
+        masteryRules: {
+          levelUp: 'score >= 5/6',
+          levelDown: 'score <= 2/6',
+          maintain: 'score 3-4/6'
+        }
+      },
+      
+      questionPool: [
+        'tree1_branch1_leaf2',
+        'tree1_branch1_leaf3'
+        // More questions can be added dynamically
+      ]
+    }
+  },
+  
+  // ==================== GRAPH EDGES (DAG) ====================
+  edges: [
+    // Tree 1 structure
+    { from: 'tree1_root', to: 'tree1_branch1_leaf1', type: 'prerequisite' },
+    { from: 'tree1_branch1_leaf1', to: 'tree1_branch1_leaf2', type: 'prerequisite' },
+    { from: 'tree1_branch1_leaf2', to: 'tree1_branch1_leaf3', type: 'prerequisite' },
+    
+    // Cross-tree prerequisites (inter-tree dependencies)
+    { from: 'tree1_branch1_leaf3', to: 'tree2_root', type: 'cross_tree_prerequisite' },
+    
+    // Tree 2 structure
+    { from: 'tree2_root', to: 'tree2_branch1_leaf1', type: 'prerequisite' },
+    
+    // Project dependencies
+    { from: 'tree2_branch1_leaf1', to: 'project1', type: 'required_skill' },
+    { from: 'tree1_branch1_leaf3', to: 'project1', type: 'required_skill' },
+    
+    // Review/remediation edges (Architecture.pdf Section 3)
+    { 
+      from: 'tree1_branch1_leaf2', 
+      to: 'tree1_branch1_leaf1', 
+      type: 'remediation',
+      condition: 'score < 0.7',
+      description: 'Review context window fundamentals'
+    },
+    { 
+      from: 'review_mastery_challenge_1', 
+      to: 'tree1_branch1_leaf2', 
+      type: 'spiral_review',
+      condition: 'days_since_completion > 7',
+      description: 'Spaced repetition review'
+    }
+  ],
+  
+  // ==================== SKILL DEFINITIONS ====================
+  skills: {
+    'context_awareness': {
+      id: 'context_awareness',
+      name: 'Context Awareness',
+      description: 'Understanding and managing LLM context limitations',
+      category: 'technical',
+      difficulty: 'beginner',
+      maxLevel: 5,
+      icon: '🎯'
+    },
+    
+    'token_management': {
+      id: 'token_management',
+      name: 'Token Management',
+      description: 'Strategies for efficient token usage',
+      category: 'technical',
+      difficulty: 'intermediate',
+      maxLevel: 5,
+      icon: '⚖️'
+    },
+    
+    'problem_solving': {
+      id: 'problem_solving',
+      name: 'Problem Solving',
+      description: 'Analytical thinking for system design',
+      category: 'cognitive',
+      difficulty: 'intermediate',
+      maxLevel: 10,
+      icon: '🧩'
+    },
+    
+    'system_design': {
+      id: 'system_design',
+      name: 'System Design',
+      description: 'Architecting robust software systems',
+      category: 'technical',
+      difficulty: 'advanced',
+      maxLevel: 10,
+      icon: '🏗️'
+    }
+  },
+  
+  // ==================== PUBLIC METHODS ====================
+  
+  /**
+   * Get node by ID with all metadata
+   * @param {string} nodeId 
+   * @returns {Object|null} Node definition
+   */
+  getNode: function(nodeId) {
+    return this.nodes[nodeId] || null;
+  },
+  
+  /**
+   * Get all prerequisite nodes for a given node
+   * @param {string} nodeId 
+   * @returns {Array} List of prerequisite node IDs
+   */
+  getPrerequisites: function(nodeId) {
+    return this.edges
+      .filter(edge => edge.to === nodeId && edge.type === 'prerequisite')
+      .map(edge => edge.from);
+  },
+  
+  /**
+   * Get all nodes that depend on this node
+   * @param {string} nodeId 
+   * @returns {Array} List of dependent node IDs
+   */
+  getDependents: function(nodeId) {
+    return this.edges
+      .filter(edge => edge.from === nodeId)
+      .map(edge => edge.to);
+  },
+  
+  /**
+   * Check if node is available given completed nodes
+   * @param {string} nodeId 
+   * @param {Array} completedNodeIds 
+   * @returns {boolean} True if all prerequisites met
+   */
+  isNodeAvailable: function(nodeId, completedNodeIds) {
+    const node = this.getNode(nodeId);
+    if (!node) return false;
+    
+    // Check explicit unlock requirements
+    const hasAllRequirements = node.unlockRequirements.every(req => 
+      completedNodeIds.includes(req)
+    );
+    
+    if (!hasAllRequirements) return false;
+    
+    // Check edge-based prerequisites
+    const prerequisites = this.getPrerequisites(nodeId);
+    return prerequisites.every(prereq => completedNodeIds.includes(prereq));
+  },
+  
+  /**
+   * Get next available nodes (Policy Engine helper)
+   * @param {Array} completedNodeIds 
+   * @returns {Array} Available node objects
+   */
+  getAvailableNodes: function(completedNodeIds) {
+    return Object.values(this.nodes).filter(node => {
+      // Don't return already completed nodes
+      if (completedNodeIds.includes(node.id)) return false;
+      
+      // Don't return chapter nodes as "next" (they're organizational)
+      if (node.type === 'chapter') return false;
+      
+      return this.isNodeAvailable(node.id, completedNodeIds);
+    });
+  },
+  
+  /**
+   * Get skill targets for a node
+   * @param {string} nodeId 
+   * @returns {Array} Skill IDs targeted by this node
+   */
+  getNodeSkills: function(nodeId) {
+    const node = this.getNode(nodeId);
+    return node?.skills || [];
+  },
+  
+  /**
+   * Get all nodes that target a specific skill
+   * @param {string} skillId 
+   * @returns {Array} Node IDs that target this skill
+   */
+  getNodesForSkill: function(skillId) {
+    return Object.values(this.nodes)
+      .filter(node => node.skills?.includes(skillId))
+      .map(node => node.id);
+  },
+  
+  /**
+   * Calculate XP required for next level (simple progression)
+   * @param {number} currentLevel 
+   * @returns {number} XP needed for next level
+   */
+  getXpForNextLevel: function(currentLevel) {
+    // Simple exponential progression (adjust as needed)
+    return Math.floor(100 * Math.pow(1.5, currentLevel - 1));
+  },
+  
+  /**
+   * Get correct answer for assessment (v0.1 compatibility)
+   * @param {string} nodeId 
+   * @returns {any} Correct answer based on question type
+   */
+  getCorrectAnswer: function(nodeId) {
+    const node = this.getNode(nodeId);
+    if (!node?.question) return null;
+    
+    // For multiple choice, return correct option ID
+    if (node.question.type === 'multiple_choice') {
+      const correctOption = node.question.options.find(opt => opt.correct);
+      return correctOption?.id || null;
+    }
+    
+    // For open-ended, return rubric criteria
+    if (node.question.type === 'open_ended') {
+      return {
+        expectedConcepts: node.question.expectedConcepts,
+        rubric: node.question.rubric
+      };
+    }
+    
+    return null;
+  },
+  
+  /**
+   * Get feedback for specific answer (v1.0 preparation)
+   * @param {string} nodeId 
+   * @param {string} answerId - For MC, the selected option ID
+   * @returns {Object} Feedback data
+   */
+  getAnswerFeedback: function(nodeId, answerId) {
+    const node = this.getNode(nodeId);
+    if (!node?.question) return null;
+    
+    if (node.question.type === 'multiple_choice') {
+      const option = node.question.options.find(opt => opt.id === answerId);
+      return option ? {
+        isCorrect: option.correct || false,
+        feedback: option.feedback || '',
+        misconceptionCode: option.misconceptionCode || null,
+        explanation: option.explanation || ''
+      } : null;
+    }
+    
+    return null;
+  },
+  
+  /**
+   * Export tree structure for persistence
+   * @returns {Object} Serializable tree structure
+   */
+  export: function() {
+    return {
+      version: this.version,
+      tree: this.tree,
+      nodes: this.nodes,
+      edges: this.edges,
+      skills: this.skills,
+      exportedAt: new Date().toISOString()
+    };
+  }
+};
+
+// Freeze to prevent accidental mutations
+Object.freeze(SkillTree.nodes);
+Object.freeze(SkillTree.edges);
+Object.freeze(SkillTree.skills);
+Object.freeze(SkillTree.tree);
+
+export default SkillTree;
