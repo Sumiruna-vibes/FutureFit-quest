@@ -16,13 +16,14 @@ class SafeLocalStorage {
     constructor(dbPrefix = 'ffq_v1') {
         this.PREFIX = dbPrefix;
         this.checksums = new Map();
+        this.lastProcessedId = null; // Cache for incremental updates
         
         // 🎓 We run a health check immediately on startup
         this._validateIntegrity();
     }
 
     /**
-     * The core public method to save an event.
+     * Incremental append with safety.
      * @param {Object} event - The user action to save
      */
     saveEvent(event) {
@@ -50,6 +51,9 @@ class SafeLocalStorage {
 
             // D. Cleanup (Optional, but clean)
             localStorage.removeItem(`${this.PREFIX}_temp`);
+
+            // Update cache
+            this.lastProcessedId = eventId;
             
             console.log(`✅ [SafeStorage] Event saved: ${eventId}`);
             return eventId;
@@ -76,10 +80,27 @@ class SafeLocalStorage {
             return []; 
         }
 
+        // Cache last processed ID for incremental updates
+        if (rawData.length > 0) {
+            this.lastProcessedId = rawData[rawData.length - 1].id;
+        }
+
         return rawData;
     }
 
     // --- INTERNAL HELPERS (Private) ---
+
+    /**
+     * Incremental load: only replay new events since last processed ID
+     * @param {string} lastProcessedId - The ID we processed up to
+     * @returns {Array} events - Only new events
+     */
+    getNewEventsSince(lastProcessedId) {
+        const all = this._loadRawData();
+        if (!lastProcessedId) return all;
+        const idx = all.findIndex(e => e.id === lastProcessedId);
+        return idx === -1 ? all : all.slice(idx + 1);
+    }
 
     _loadRawData() {
         const json = localStorage.getItem(`${this.PREFIX}_events`);
@@ -105,6 +126,6 @@ class SafeLocalStorage {
 }
 
 // 🎓 Exporting this so other files can use it
-// Using CommonJS syntax for easy testing in Node.js
-module.exports = SafeLocalStorage;
+// Using ES module syntax to match app/src/engine pattern
+export default SafeLocalStorage;
 

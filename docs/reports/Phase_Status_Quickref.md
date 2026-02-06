@@ -12,13 +12,13 @@ Claude (Primary Coder)
     ↓ generates code
 DeepSeek (Engineering Reviewer)
     ↓ checks for violations
-Human (Final Decision)
+Claude: Strategic Vision/ Code final review
     ↓ approves/rejects
 ```
 
 **Previous Coder:** Windsurf (dropped - too many architectural violations)  
 **Previous Reviewer Setup:** Windsurf → DeepSeek → Claude  
-**Current Setup:** Claude → DeepSeek → Human
+**Current Setup:** Claude → DeepSeek → Claude → Human
 
 ---
 
@@ -152,8 +152,8 @@ futurefit-quest/
 ### Then Say:
 ```
 Continuing FutureFit Quest development.
-Current phase: [X]
-Current task: [Y]
+Current phase: [2]
+Current task: [1]
 Your role: [Primary Coder / Reviewer]
 ```
 

@@ -108,6 +108,86 @@ This file is the persistent record of decisions, architecture, and next steps.
 - Then build LessonPlayer with your enhancements
 
 ---
+## 2026-01-23 — Phase 2 Step 1: EngineProvider (React Context)
+**Goal**
+- Implement singleton injection via React Context to prevent per-component instantiation
+- Provide clean `useEngine()` hook for components
+- Follow DEVLOG.md pattern: "The UI Layer - Visualizing this data"
+
+**DEVLOG.md reference**
+- Phase 2: The UI Layer - Visualizing this data
+- Pattern: Create context provider, instantiate engines once, provide hook
+
+**Proposed implementation (per DEVLOG.md style)**
+```javascript
+// app/src/contexts/EngineContext.jsx
+import React, { createContext, useContext, useMemo } from 'react';
+import SafeLocalStorage from '../engine/SafeLocalStorage';
+import EventManager from '../engine/EventManager';
+import ProgressService from '../engine/ProgressService';
+import PolicyEngine from '../engine/PolicyEngine';
+import SkillTree from '../engine/SkillTree';
+
+const EngineContext = createContext(null);
+
+export function EngineProvider({ children, userProfile = {} }) {
+    const engines = useMemo(() => ({
+        storage: new SafeLocalStorage(),
+        eventManager: new EventManager(new SafeLocalStorage()),
+        progressService: new ProgressService(),
+        policyEngine: new PolicyEngine(userProfile),
+        skillTree: SkillTree
+    }), [userProfile.isDeveloper]);
+
+    return (
+        <EngineContext.Provider value={engines}>
+            {children}
+        </EngineContext.Provider>
+    );
+}
+
+export function useEngine() {
+    const engines = useContext(EngineContext);
+    if (!engines) {
+        throw new Error('useEngine must be used within EngineProvider');
+    }
+    return engines;
+}
+```
+
+**Files to create/modify**
+1. `app/src/contexts/EngineContext.jsx` (new)
+2. `app/src/main.jsx` (wrap App with EngineProvider)
+
+**Next step**
+- Present this for approval, then create the file and update main.jsx
+
+---
+## 2026-01-23 — Phase 2 Planning: EngineProvider (React Context)
+**Goal**
+- Implement singleton injection via React Context to prevent per-component instantiation
+- Provide clean `useEngine()` hook for components
+- Optionally prepare for SessionManager orchestrator
+
+**Why this matters**
+- Prevents components from calling `new EventManager()` directly
+- Ensures single instances across the app
+- Enables future features like SessionManager without UI changes
+
+**Proposed implementation plan**
+- Create `app/src/contexts/EngineContext.jsx`
+- Instantiate all engines once in context value
+- Provide `useEngine()` custom hook
+- Wrap `<App />` in `EngineProvider` in `main.jsx`
+
+**Files to create/modify**
+1. `app/src/contexts/EngineContext.jsx` (new)
+2. `app/src/main.jsx` (wrap App with EngineProvider)
+
+**Next step**
+- Present EngineContext.jsx code for approval before proceeding
+
+---
 ## 2026-01-11 — Foundations implemented (SafeLocalStorage, incremental state, developer mode)
 **Goal**
 - Implement SafeLocalStorage wrapper with checksums and transaction safety

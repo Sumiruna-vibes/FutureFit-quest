@@ -269,3 +269,522 @@ policy.configure({ isDeveloper: true });
 - **First UI Component:** 📅 After EngineProvider
 - **Current Coder:** Claude
 - **Review Chain:** Claude → DeepSeek → Claude → Human
+
+# DEVLOG - Chapter 7: The Session Manager (Orchestrator Layer)
+
+**Date:** Feb 1, 2026  
+**Phase:** 2 (React UI Layer)  
+**Status:** 🟡 IN PROGRESS
+
+---
+
+## The Challenge
+
+We have all the Phase 1 engines built and working (Storage, Events, Progress, Policy). We have EngineContext ready to inject them into React. But we're missing the **orchestration layer** — the component that sits between the UI and the engines and coordinates multi-step workflows.
+
+Without SessionManager, UI components would have to call engines directly:
+```javascript
+// ❌ What we DON'T want (component doing orchestration):
+function LessonPlayer() {
+  const { eventManager, progressService, policyEngine } = useEngines();
+  
+  const handleAnswer = async (answer) => {
+    // Component has to know the workflow steps
+    const isCorrect = answer === correctAnswer; // inline validation
+    eventManager.recordEvent(userId, 'QUIZ_ATTEMPT', { correct: isCorrect });
+    const events = eventManager.getUserHistory(userId);
+    const progress = progressService.calculateUserState(events);
+    const nextNode = policyEngine.getNextLesson(userId, progress);
+    // ... and so on
+  };
+}
+```
+
+This violates the **unidirectional flow** principle from Architecture.pdf. The component shouldn't know about the workflow — it should just say *"user completed this lesson"* and get back the result.
+
+---
+
+## The Solution: SessionManager as Workflow Orchestrator
+
+SessionManager is the **single entry point for user-triggered workflows**. It:
+1. Receives high-level user actions from UI components
+2. Orchestrates calls to the appropriate engines in the correct order
+3. Returns structured results back to the UI
+
+**Key Design Principle (Agreed with Human):**
+- SessionManager orchestrates **user-triggered workflows** (lesson completions, progress queries)
+- Engines can still call each other **directly for internal needs** (e.g., ProgressService calling EventManager.getUserHistory())
+- SessionManager is NOT a universal message bus — it's a workflow coordinator
+
+This keeps SessionManager focused and prevents it from becoming a "god object."
+
+---
+
+## Public API Design (from DeepSeek Review)
+
+SessionManager exposes 5 core methods:
+
+```javascript
+class SessionManager {
+  // 1. PRIMARY ACTION: Orchestrates full lesson completion workflow
+  async handleLessonCompletion(userId, nodeId, attemptData) {}
+  
+  // 2. STATE ACCESS: Returns current XP, streak, level, etc.
+  async getCurrentProgress(userId) {}
+  
+  // 3. NAVIGATION: Returns unlocked/available lesson nodes
+  async getAvailableLessons(userId) {}
+  
+  // 4. ACHIEVEMENTS: Checks if user earned badges/milestones
+  async checkAchievements(userId) {}
+  
+  // 5. DEBUG: Returns raw engine state for developer mode
+  async getSystemState(userId) {}
+}
+```
+
+**Why `async` even though v0.1 is synchronous?**
+Future-proofing. When we migrate to PostgreSQL in Phase 4, all these operations become async. Making them async now means UI components don't need to change later.
+
+---
+
+## V0.1 Simplifications & Migration Strategy
+
+**CRITICAL DECISION:** We're building SessionManager *before* Assessment Engine exists. This requires temporary simplifications that must be replaced in v1.0.
+
+### What's Different in V0.1 vs Final Architecture
+
+| Aspect | V0.1 (Current) | V1.0 (Target per Architecture.pdf) |
+|--------|----------------|-----------------------------------|
+| **Answer Validation** | Inline in SessionManager (simple equality check) | Separate Assessment Engine with semantic similarity, rubrics, misconception detection |
+| **Engine Version Tracking** | Not implemented | `meta.assessmentEngineVersion` in every attempt event |
+| **Error Handling** | Fail-fast (crash and log) | Transactional rollback with graceful degradation |
+| **Feedback Generation** | Static messages | Database-backed feedback templates keyed by misconception codes |
+| **Achievement System** | Stub (returns empty array) | Full badge/milestone detection logic |
+| **Celebration Triggers** | Basic branch completion check | Sophisticated milestone detection (streaks, level-ups, mastery) |
+
+---
+
+## V1.0 MIGRATION CHECKLIST
+
+**⚠️ FOR FUTURE CONTEXT WINDOWS:**
+
+When upgrading from v0.1 → v1.0 (multi-user production deployment), the following changes are REQUIRED:
+
+### 1. Build Assessment Engine (HIGH PRIORITY)
+- [ ] Create `app/src/engine/AssessmentEngine.js` following Architecture.pdf Section 5
+- [ ] Implement validation decision tree:
+  - Normalize input (locale-aware, punctuation handling)
+  - Fast deterministic checks (multiple choice, numeric, math equivalence)
+  - Rule-based pattern matching (known misconceptions)
+  - Semantic grading (embeddings similarity for open responses)
+  - LLM judge fallback (bounded, strict JSON schema)
+- [ ] Return typed output: `{ verdict, score, misconceptionCode, feedbackKey, confidence }`
+- [ ] **Estimated effort:** 8 hours
+
+### 2. Integrate Assessment Engine into SessionManager (HIGH PRIORITY)
+- [ ] Replace inline validation in `handleLessonCompletion()` with:
+  ```javascript
+  const assessment = await this.assessmentEngine.validate({
+    questionId: nodeId,
+    questionType: question.type,
+    rubric: question.rubric,
+    userAnswer: attemptData.userAnswer,
+    locale: 'en-US'
+  });
+  ```
+- [ ] Add `meta.assessmentEngineVersion` to attempt events
+- [ ] **Estimated effort:** 2 hours
+
+### 3. Upgrade Error Handling (MEDIUM PRIORITY)
+- [ ] Replace Option C (fail-fast) with Option A (transactional rollback)
+- [ ] Implement `_rollbackTransaction()` method to undo partial workflow on failure
+- [ ] Add degraded mode for storage failures (in-memory fallback with warning)
+- [ ] **Estimated effort:** 4 hours
+
+### 4. Build Achievement System (MEDIUM PRIORITY)
+- [ ] Create badge definitions in SkillTree or separate config
+- [ ] Implement `_detectAchievements()` logic:
+  - Check for streak milestones (7, 30, 100 days)
+  - Check for XP level-ups
+  - Check for tree/branch completions
+  - Check for mastery unlocks
+- [ ] Return `badgesEarned[]` array in `handleLessonCompletion()` response
+- [ ] **Estimated effort:** 3 hours
+
+### 5. Implement Feedback Templates (LOW PRIORITY)
+- [ ] Create feedback database schema (or JSON config file)
+- [ ] Map `(questionId, misconceptionCode, locale) → feedbackTemplateId`
+- [ ] Replace static `message: 'Correct!'` with template rendering
+- [ ] **Estimated effort:** 2 hours
+
+### 6. Add Engine Version Tracking (LOW PRIORITY)
+- [ ] Update EventManager schema to include:
+  ```javascript
+  meta: {
+    eventManagerVersion: '1.0',
+    assessmentEngineVersion: '2.3',
+    progressServiceVersion: '1.2',
+    policyEngineVersion: '1.0'
+  }
+  ```
+- [ ] Pass version info from SessionManager when writing events
+- [ ] **Estimated effort:** 1 hour
+
+# DEVLOG - Chapter 7: The Session Manager (Orchestrator Layer)
+
+**Date:** Feb 1, 2026  
+**Phase:** 2 (React UI Layer)  
+**Status:** 🟡 IN PROGRESS
+
+---
+
+## The Challenge
+
+We have all the Phase 1 engines built and working (Storage, Events, Progress, Policy). We have EngineContext ready to inject them into React. But we're missing the **orchestration layer** — the component that sits between the UI and the engines and coordinates multi-step workflows.
+
+Without SessionManager, UI components would have to call engines directly:
+```javascript
+// ❌ What we DON'T want (component doing orchestration):
+function LessonPlayer() {
+  const { eventManager, progressService, policyEngine } = useEngines();
+  
+  const handleAnswer = async (answer) => {
+    // Component has to know the workflow steps
+    const isCorrect = answer === correctAnswer; // inline validation
+    eventManager.recordEvent(userId, 'QUIZ_ATTEMPT', { correct: isCorrect });
+    const events = eventManager.getUserHistory(userId);
+    const progress = progressService.calculateUserState(events);
+    const nextNode = policyEngine.getNextLesson(userId, progress);
+    // ... and so on
+  };
+}
+```
+
+This violates the **unidirectional flow** principle from Architecture.pdf. The component shouldn't know about the workflow — it should just say *"user completed this lesson"* and get back the result.
+
+---
+
+## The Solution: SessionManager as Workflow Orchestrator
+
+SessionManager is the **single entry point for user-triggered workflows**. It:
+1. Receives high-level user actions from UI components
+2. Orchestrates calls to the appropriate engines in the correct order
+3. Returns structured results back to the UI
+
+**Key Design Principle (Agreed with Human):**
+- SessionManager orchestrates **user-triggered workflows** (lesson completions, progress queries)
+- Engines can still call each other **directly for internal needs** (e.g., ProgressService calling EventManager.getUserHistory())
+- SessionManager is NOT a universal message bus — it's a workflow coordinator
+
+This keeps SessionManager focused and prevents it from becoming a "god object."
+
+---
+
+## Public API Design (from DeepSeek Review)
+
+SessionManager exposes 5 core methods:
+
+```javascript
+class SessionManager {
+  // 1. PRIMARY ACTION: Orchestrates full lesson completion workflow
+  async handleLessonCompletion(userId, nodeId, attemptData) {}
+  
+  // 2. STATE ACCESS: Returns current XP, streak, level, etc.
+  async getCurrentProgress(userId) {}
+  
+  // 3. NAVIGATION: Returns unlocked/available lesson nodes
+  async getAvailableLessons(userId) {}
+  
+  // 4. ACHIEVEMENTS: Checks if user earned badges/milestones
+  async checkAchievements(userId) {}
+  
+  // 5. DEBUG: Returns raw engine state for developer mode
+  async getSystemState(userId) {}
+}
+```
+
+**Why `async` even though v0.1 is synchronous?**
+Future-proofing. When we migrate to PostgreSQL in Phase 4, all these operations become async. Making them async now means UI components don't need to change later.
+
+---
+
+## V0.1 Simplifications & Migration Strategy
+
+**CRITICAL DECISION:** We're building SessionManager *before* Assessment Engine exists. This requires temporary simplifications that must be replaced in v1.0.
+
+### What's Different in V0.1 vs Final Architecture
+
+| Aspect | V0.1 (Current) | V1.0 (Target per Architecture.pdf) |
+|--------|----------------|-----------------------------------|
+| **Answer Validation** | Inline in SessionManager (simple equality check) | Separate Assessment Engine with semantic similarity, rubrics, misconception detection |
+| **Engine Version Tracking** | Not implemented | `meta.assessmentEngineVersion` in every attempt event |
+| **Error Handling** | Fail-fast (crash and log) | Transactional rollback with graceful degradation |
+| **Feedback Generation** | Static messages | Database-backed feedback templates keyed by misconception codes |
+| **Achievement System** | Stub (returns empty array) | Full badge/milestone detection logic |
+| **Celebration Triggers** | Basic branch completion check | Sophisticated milestone detection (streaks, level-ups, mastery) |
+
+---
+
+## V1.0 MIGRATION CHECKLIST
+
+**⚠️ FOR FUTURE CONTEXT WINDOWS:**
+
+When upgrading from v0.1 → v1.0 (multi-user production deployment), the following changes are REQUIRED:
+
+### 1. Build Assessment Engine (HIGH PRIORITY)
+- [ ] Create `app/src/engine/AssessmentEngine.js` following Architecture.pdf Section 5
+- [ ] Implement validation decision tree:
+  - Normalize input (locale-aware, punctuation handling)
+  - Fast deterministic checks (multiple choice, numeric, math equivalence)
+  - Rule-based pattern matching (known misconceptions)
+  - Semantic grading (embeddings similarity for open responses)
+  - LLM judge fallback (bounded, strict JSON schema)
+- [ ] Return typed output: `{ verdict, score, misconceptionCode, feedbackKey, confidence }`
+- [ ] **Estimated effort:** 8 hours
+
+### 2. Integrate Assessment Engine into SessionManager (HIGH PRIORITY)
+- [ ] Replace inline validation in `handleLessonCompletion()` with:
+  ```javascript
+  const assessment = await this.assessmentEngine.validate({
+    questionId: nodeId,
+    questionType: question.type,
+    rubric: question.rubric,
+    userAnswer: attemptData.userAnswer,
+    locale: 'en-US'
+  });
+  ```
+- [ ] Add `meta.assessmentEngineVersion` to attempt events
+- [ ] **Estimated effort:** 2 hours
+
+### 3. Upgrade Error Handling (MEDIUM PRIORITY)
+- [ ] Replace Option C (fail-fast) with Option A (transactional rollback)
+- [ ] Implement `_rollbackTransaction()` method to undo partial workflow on failure
+- [ ] Add degraded mode for storage failures (in-memory fallback with warning)
+- [ ] **Estimated effort:** 4 hours
+
+### 4. Build Achievement System (MEDIUM PRIORITY)
+- [ ] Create badge definitions in SkillTree or separate config
+- [ ] Implement `_detectAchievements()` logic:
+  - Check for streak milestones (7, 30, 100 days)
+  - Check for XP level-ups
+  - Check for tree/branch completions
+  - Check for mastery unlocks
+- [ ] Return `badgesEarned[]` array in `handleLessonCompletion()` response
+- [ ] **Estimated effort:** 3 hours
+
+### 5. Implement Feedback Templates (LOW PRIORITY)
+- [ ] Create feedback database schema (or JSON config file)
+- [ ] Map `(questionId, misconceptionCode, locale) → feedbackTemplateId`
+- [ ] Replace static `message: 'Correct!'` with template rendering
+- [ ] **Estimated effort:** 2 hours
+
+### 6. Add Engine Version Tracking (LOW PRIORITY)
+- [ ] Update EventManager schema to include:
+  ```javascript
+  meta: {
+    eventManagerVersion: '1.0',
+    assessmentEngineVersion: '2.3',
+    progressServiceVersion: '1.2',
+    policyEngineVersion: '1.0'
+  }
+  ```
+- [ ] Pass version info from SessionManager when writing events
+- [ ] **Estimated effort:** 1 hour
+
+**TOTAL V1.0 MIGRATION EFFORT:** ~20 hours (≈7 weeks at 3hrs/week pace)
+
+**DEPENDENCIES:**
+- Assessment Engine must be built before Step 2
+- Feedback templates depend on Assessment Engine's misconception codes
+- Achievement system can be built independently
+
+**VALIDATION:**
+- [ ] Run full integration test suite
+- [ ] Test with real users (not just developer)
+- [ ] Verify event replay produces consistent state
+- [ ] Audit engine version tracking with multiple scoring rule changes
+
+---
+
+## Documentation Strategy (Architecture Decision)
+
+**Question Raised by Human:**
+*"We must bear in mind that transition to v1.0, when it happens in a future context window, will need to be informed of these changes. How will we document this? Will you code in a way that parts may be written but idle, to be activated when version changes, or will you put it on DEVLOG?"*
+
+**Decision Made (Feb 1, 2026):**
+
+We will **NOT** use version gates or dead code in the implementation. Instead:
+
+### 1. In the Code (SessionManager.js)
+A single header comment block:
+```javascript
+/**
+ * SessionManager v0.1
+ * 
+ * V1.0 MIGRATION NOTES (see DEVLOG Chapter 7 for details):
+ * - Replace inline validation with AssessmentEngine.validate()
+ * - Add engine version tracking to event metadata
+ * - Replace fail-fast with transactional rollback
+ * - Implement full achievement detection
+ * 
+ * Migration checklist: DEVLOG Chapter 7, Section "V1.0 Migration Checklist"
+ * Architecture rationale: Architecture_Decisions_Log.md Decision 4
+ */
+```
+
+### 2. In DEVLOG.md (This Chapter)
+The "V1.0 Migration Checklist" section above serves as the action plan.
+
+### 3. In Architecture_Decisions_Log.md
+We'll add **Decision 4: V0.1 Simplifications for SessionManager** documenting:
+- What we simplified and why
+- The v1.0 target state
+- Estimated migration effort
+- Link back to this chapter
+
+### Why This Approach?
+
+**Rejected Alternative: Version Gates in Code**
+```javascript
+// ❌ DON'T DO THIS:
+if (VERSION === 'v0.1') {
+  return { isCorrect: userAnswer === correctAnswer };
+} else {
+  // V1.0: Activate when migrating
+  // return await assessmentEngine.validate(...);
+}
+```
+
+**Problems with version gates:**
+- Dead code in the repository (confusing to read)
+- Runtime overhead checking versions
+- Future developer has to hunt for scattered `// V1.0:` comments
+- Increases bundle size unnecessarily
+- Makes current code harder to understand
+
+**Why Our Approach Works:**
+- Code stays clean (no dead branches)
+- DEVLOG provides explicit migration checklist
+- Architecture log explains *why* we made temporary choices
+- Future Claude reads DEVLOG first (per handoff template)
+- The code comment creates a breadcrumb trail to full documentation
+
+---
+
+## Celebration Logic (Product Decision)
+
+**Question from Human:**
+*"Will confetti be shown every time student has a correct answer? It should be less often, e.g., every time a branch is complete."*
+
+**Decision:** Celebrations are **milestone-based**, not answer-based.
+
+### V0.1 Celebration Triggers
+
+```javascript
+// Only these events trigger visual celebrations:
+- 'BRANCH_COMPLETE'   // User finished all leaves in a branch
+- 'TREE_COMPLETE'     // User finished entire skill tree
+- 'STREAK_MILESTONE'  // Hit streak of 7, 30, 100 days (v1.0)
+- 'LEVEL_UP'          // Crossed XP threshold to new level (v1.0)
+- null                // Default: no celebration (just feedback)
+```
+
+**V0.1 Implementation:**
+SessionManager returns `feedback.celebration` field. Most of the time it's `null`. Only set for meaningful achievements.
+
+**Component Behavior:**
+```javascript
+const result = await sessionManager.handleLessonCompletion(...);
+
+if (result.feedback.celebration === 'BRANCH_COMPLETE') {
+  showConfetti();
+  playSound('triumph.mp3');
+  showBadgePopup('Branch Master');
+}
+```
+
+**Why This Matters:**
+- Keeps celebrations special and meaningful
+- Prevents habituation (user gets numb to constant rewards)
+- Aligns with gamification best practices (variable reward schedules)
+
+---
+
+## FeedbackOrchestrator: Engine vs UI Layer
+
+**Critical Separation Decision:**
+
+**SessionManager (Engine Layer):**
+- Business logic only
+- Returns celebration triggers as data (`{ celebration: 'BRANCH_COMPLETE', badgesEarned: [...] }`)
+- No knowledge of animations, sounds, or visual effects
+- Fully testable without React
+
+**FeedbackOrchestrator (UI Layer - React Component):**
+- Receives business data from SessionManager
+- Makes UI decisions (which animation, how long, accessibility)
+- Handles user preferences (disable animations, reduce motion)
+- Controls timing and sequencing of visual feedback
+
+**Why This Separation is CRITICAL:**
+1. **Testability:** SessionManager can be unit tested without rendering React
+2. **Maintainability:** UI changes don't require touching business logic
+3. **Future Flexibility:** Can completely redesign celebration UX without changing SessionManager
+4. **Accessibility:** FeedbackOrchestrator can respect `prefers-reduced-motion` without SessionManager knowing
+
+---
+
+## Return Value Structure
+
+`handleLessonCompletion()` returns:
+```javascript
+{
+  success: true,
+  nextNode: { 
+    id: 'tree1_branch2_leaf4', 
+    title: 'Understanding Prompt Engineering',
+    type: 'video',
+    // ... other node data from SkillTree
+  },
+  progressUpdate: { 
+    xp: 120, 
+    streak: 3, 
+    level: 2,
+    xpToNextLevel: 30
+  },
+  achievements: [], // v0.1: always empty array (stub)
+  feedback: { 
+    isCorrect: true, 
+    message: 'Correct! You understand the basics of context windows.',
+    celebration: 'BRANCH_COMPLETE' // or null
+  }
+}
+```
+
+UI components consume this structured data and decide how to present it.
+
+---
+
+## Next Steps
+
+1. ✅ Documentation complete (this chapter)
+2. 🟡 Build SessionManager v0.1 implementation
+3. 🔲 Update Architecture_Decisions_Log.md with Decision 4
+4. 🔲 Add SessionManager to EngineContext
+5. 🔲 Build first UI component (LessonPlayer) that uses SessionManager
+
+---
+
+## Key Learnings (For Future Chapters)
+
+1. **Document migration paths upfront** — Don't wait until v1.0 to figure out what needs upgrading
+2. **Clean code > version gates** — Use documentation for future work, not commented-out code
+3. **Separation of concerns** — Business logic (SessionManager) must stay independent of presentation (FeedbackOrchestrator)
+4. **Async-by-default** — Even if current implementation is sync, async interfaces future-proof the API
+
+---
+
+**END OF CHAPTER 7 DOCUMENTATION**
+
+
