@@ -1,5 +1,47 @@
 # Building FutureFit: The Architect's Log
 
+## Chapter 8: Git Refactor & Component Integration (Date: Feb 7, 2026)
+
+### The Goal
+Reorganize the git repository to consolidate project structure and establish a canonical layout for contributors.
+
+### The Problem
+- Old `src/data/*` and `src/tests/*` files were relocated to `app/src/engine/` and `app/tests/`—but git still tracked them at old paths.
+- Claude's new Dashboard and LessonPlayer components needed a clear home to avoid path conflicts.
+- Build initially failed: `Could not resolve "./components/Dashboard"` because components were missing.
+
+### The Solution
+
+#### Step 1: Git Cleanup
+- Removed old file references (`src/data/EventManager.js`, etc.) from git history.
+- Moved all documentation into logical subdirectories: `docs/architecture/`, `docs/reports/`, `docs/reviews/`, etc.
+- Single commit: "refactor: remove old src/data and src/tests directories after relocation to app/"
+
+#### Step 2: Canonical Layout & Developer Guide
+- Created `docs/DEVELOPER_GUIDE.md` describing the new canonical structure:
+  - `app/src/components/` — React UI components (Dashboard, LessonPlayer, etc.)
+  - `app/src/engine/` — Engine services (EventManager, PolicyEngine, SafeLocalStorage)
+  - `app/src/contexts/` — React context providers
+- Added `docs/COMMS_TO_CLAUDE.md` with clear instructions for future contributions.
+
+#### Step 3: Component Delivery
+- Added lightweight placeholders for Dashboard and LessonPlayer to keep build green.
+- Claude delivered real implementations; moved them to `app/src/components/`.
+- Build succeeded: **✓ built in 1.41s** (38 modules, 217.45 kB gzipped JS, 35.60 kB CSS).
+
+### Outcome
+- ✅ Git history clean and logical.
+- ✅ Build pipeline unblocked.
+- ✅ Dashboard and LessonPlayer integrated and deployable.
+- ✅ Contributors now have clear layout guidelines.
+
+### Key Lessons
+- Placeholders are useful for unblocking builds while waiting for implementation.
+- A single, shared developer guide prevents path conflicts and import errors.
+- Canonical layout (`app/src/*`) simplifies Vite/ESM resolution.
+
+---
+
 ## Chapter 1: The Foundation (Date: Dec 27, 2025)
 
 ### The Goal
