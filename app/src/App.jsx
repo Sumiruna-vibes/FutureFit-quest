@@ -24,21 +24,24 @@ function AppContent() {
     setCurrentView('lesson');
   };
 
+  const [dashboardKey, setDashboardKey] = useState(0);
+
   const handleLessonComplete = (result) => {
     // result can be null (user clicked back) or completion data
     if (result && result.feedback?.celebration) {
-      // v0.2: Trigger celebration animation here
       console.log('🎉 Celebration:', result.feedback.celebration);
     }
-    
+
     setCurrentView('dashboard');
     setCurrentLesson(null);
+    // Increment key to force Dashboard to remount and reload progress
+    setDashboardKey(prev => prev + 1);
   };
 
   return (
     <>
       {currentView === 'dashboard' ? (
-        <Dashboard onStartLesson={handleStartLesson} />
+        <Dashboard key={dashboardKey} onStartLesson={handleStartLesson} />
       ) : (
         <LessonPlayer
           nodeId={currentLesson}

@@ -338,12 +338,11 @@ function LessonCard({ lesson, visualState, onStart }) {
 
 /**
  * Developer Mode Toggle
- * Shows current mode, allows toggling (v0.2: implement actual toggle)
+ * Reads isDeveloper from PolicyEngine singleton (no hardcoding).
  */
 function DeveloperToggle() {
-  // v0.1: Read-only display
-  // v1.0: Implement actual toggle that reconfigures PolicyEngine
-  const isDeveloper = true; // Hardcoded in EngineContext
+  const { policyEngine } = useEngines();
+  const isDeveloper = policyEngine.isDeveloper;
 
   return (
     <div className="flex items-center gap-3 bg-slate-800/40 backdrop-blur-sm px-4 py-2 rounded-lg border border-slate-700/30">
@@ -351,9 +350,6 @@ function DeveloperToggle() {
       <span className="text-sm text-sky-300/70">
         {isDeveloper ? 'Developer Mode' : 'Student Mode'}
       </span>
-      
-      {/* v0.2: Add actual toggle button here */}
-      <span className="text-xs text-sky-400/50 ml-2">(v0.1: display only)</span>
     </div>
   );
 }
