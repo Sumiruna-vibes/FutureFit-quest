@@ -34,6 +34,7 @@ export default function LessonPlayer({ nodeId, userId, onComplete }) {
   const [hintsUsed, setHintsUsed] = useState(0);
   const [hintVisible, setHintVisible] = useState(false);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
+  const consecutiveErrorsRef = useRef(0);
   const [startTime] = useState(Date.now());
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -83,7 +84,8 @@ export default function LessonPlayer({ nodeId, userId, onComplete }) {
       );
 
       if (!completionResult.feedback.isCorrect) {
-        setConsecutiveErrors(prev => prev + 1);
+        consecutiveErrorsRef.current += 1;
+        setConsecutiveErrors(consecutiveErrorsRef.current);
       }
 
       setResult(completionResult);
@@ -118,12 +120,22 @@ export default function LessonPlayer({ nodeId, userId, onComplete }) {
 
   // Show result screen after submission
   if (result) {
+    const handleFeedbackContinue = () => {
+      if (result.feedback.isCorrect) {
+        onComplete(result);
+      } else {
+        // Stay on the same question — reset for retry
+        setResult(null);
+        setUserAnswer('');
+      }
+    };
+
     return (
       <FeedbackOrchestrator
         result={result}
-        consecutiveErrors={consecutiveErrors}
+        consecutiveErrors={consecutiveErrorsRef.current}
         timeElapsed={timeElapsed}
-        onContinue={() => onComplete(result)}
+        onContinue={handleFeedbackContinue}
       />
     );
   }
