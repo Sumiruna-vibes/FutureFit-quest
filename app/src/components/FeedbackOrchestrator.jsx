@@ -96,6 +96,45 @@ function Confetti() {
 }
 
 // ---------------------------------------------------------------------------
+// Intensity config table
+// ---------------------------------------------------------------------------
+
+const INTENSITY_CONFIG = {
+  MAJOR: {
+    bg: 'bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900',
+    card: 'from-yellow-900/30 to-amber-900/30 border-yellow-500/40 bg-gradient-to-br',
+    icon: '🏆',
+    heading: 'Outstanding!',
+    headingColor: 'text-yellow-100',
+    animationClass: 'feedback-glow-gold',
+  },
+  RECOVERY: {
+    bg: 'bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900',
+    card: 'from-teal-900/40 to-emerald-900/30 border-teal-600/40 bg-gradient-to-br',
+    icon: '💪',
+    heading: 'You Got It!',
+    headingColor: 'text-teal-100',
+    animationClass: 'feedback-pulse-teal',
+  },
+  STANDARD: {
+    bg: 'bg-gradient-to-br from-slate-900 via-green-900 to-slate-900',
+    card: 'from-green-900/40 to-emerald-900/40 border-green-700/30 bg-gradient-to-br',
+    icon: '✅',
+    heading: 'Correct!',
+    headingColor: 'text-green-100',
+    animationClass: 'feedback-pop-check',
+  },
+  INCORRECT: {
+    bg: 'bg-gradient-to-br from-slate-900 via-red-950 to-slate-900',
+    card: 'from-red-900/40 to-orange-900/40 border-red-700/30 bg-gradient-to-br',
+    icon: '💭',
+    heading: 'Not Quite',
+    headingColor: 'text-orange-100',
+    animationClass: 'feedback-shake',
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
@@ -198,45 +237,6 @@ export default function FeedbackOrchestrator({ result, consecutiveErrors, onCont
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Intensity config table
-// ---------------------------------------------------------------------------
-
-const INTENSITY_CONFIG = {
-  MAJOR: {
-    bg: 'bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900',
-    card: 'from-yellow-900/30 to-amber-900/30 border-yellow-500/40 bg-gradient-to-br',
-    icon: '🏆',
-    heading: 'Outstanding!',
-    headingColor: 'text-yellow-100',
-    animationClass: 'feedback-glow-gold',
-  },
-  RECOVERY: {
-    bg: 'bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900',
-    card: 'from-teal-900/40 to-emerald-900/30 border-teal-600/40 bg-gradient-to-br',
-    icon: '💪',
-    heading: 'You Got It!',
-    headingColor: 'text-teal-100',
-    animationClass: 'feedback-pulse-teal',
-  },
-  STANDARD: {
-    bg: 'bg-gradient-to-br from-slate-900 via-green-900 to-slate-900',
-    card: 'from-green-900/40 to-emerald-900/40 border-green-700/30 bg-gradient-to-br',
-    icon: '✅',
-    heading: 'Correct!',
-    headingColor: 'text-green-100',
-    animationClass: 'feedback-pop-check',
-  },
-  INCORRECT: {
-    bg: 'bg-gradient-to-br from-slate-900 via-red-950 to-slate-900',
-    card: 'from-red-900/40 to-orange-900/40 border-red-700/30 bg-gradient-to-br',
-    icon: '💭',
-    heading: 'Not Quite',
-    headingColor: 'text-orange-100',
-    animationClass: 'feedback-shake',
-  },
-};
 
 // ---------------------------------------------------------------------------
 // CSS animations injected as a style tag
