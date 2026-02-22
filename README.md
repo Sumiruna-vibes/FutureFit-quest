@@ -1,0 +1,1 @@
+Futureift-quest is a reskilling app for non STEM professionals to thrive on the future AI disrupted labor market. I am a Vibe coder orchestrating AI agents. Up to this point Ibhave used Gemini 3, deepseek R1 and Claude Opus 4.6 and Sonnet 4.5.
