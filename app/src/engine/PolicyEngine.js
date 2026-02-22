@@ -58,15 +58,37 @@ class PolicyEngine {
     }
 
     /**
-     * Returns the Visual State for the UI (Cloud, Fog, Locked)
+     * Returns one of 5 visual states for the UI.
+     *
+     * States (spec: Architecture v1.1 Section 3.2):
+     *   COMPLETED      – node is in completedNodes
+     *   IN_PROGRESS    – node has been attempted but not completed
+     *   UNLOCKED_NEW   – all prereqs met, not yet started
+     *   LOCKED_NEAR    – exactly 1 prerequisite unmet
+     *   LOCKED_FAR     – 2+ prerequisites unmet
+     *
+     * @param {string} nodeId
+     * @param {{ completedNodes: string[], attemptedNodes?: string[] }} userState
      */
     getVisualState(nodeId, userState) {
-        if (userState.completedNodes.includes(nodeId)) return 'COMPLETED';
-        
-        const access = this.canAccessNode(nodeId, userState);
-        if (access.allowed) return 'UNLOCKED';
-        
-        return 'LOCKED';
+        const completed = userState.completedNodes || [];
+        const attempted = userState.attemptedNodes || [];
+
+        if (completed.includes(nodeId)) return 'COMPLETED';
+
+        const targetNode = this.tree.find(n => n.id === nodeId);
+        if (!targetNode) return 'LOCKED_FAR';
+
+        const unmetPrereqs = targetNode.prerequisites.filter(
+            req => !completed.includes(req)
+        );
+
+        if (unmetPrereqs.length === 0) {
+            // Accessible — distinguish in-progress from new
+            return attempted.includes(nodeId) ? 'IN_PROGRESS' : 'UNLOCKED_NEW';
+        }
+
+        return unmetPrereqs.length === 1 ? 'LOCKED_NEAR' : 'LOCKED_FAR';
     }
 }
 

@@ -24,6 +24,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useEngines } from '../contexts/EngineContext';
 import { getNode, getQuestion } from '../engine/SkillTree';
+import FeedbackOrchestrator from './FeedbackOrchestrator';
 
 export default function LessonPlayer({ nodeId, userId, onComplete }) {
   const { sessionManager } = useEngines();
@@ -31,6 +32,8 @@ export default function LessonPlayer({ nodeId, userId, onComplete }) {
   const [question, setQuestion] = useState(null);
   const [userAnswer, setUserAnswer] = useState('');
   const [hintsUsed, setHintsUsed] = useState(0);
+  const [hintVisible, setHintVisible] = useState(false);
+  const [consecutiveErrors, setConsecutiveErrors] = useState(0);
   const [startTime] = useState(Date.now());
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -61,17 +64,6 @@ export default function LessonPlayer({ nodeId, userId, onComplete }) {
     }
   }, [nodeId]);
 
-  // Auto-navigate after success (2 second delay)
-  useEffect(() => {
-    if (result?.success && result?.feedback?.isCorrect) {
-      const timer = setTimeout(() => {
-        onComplete(result);
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [result, onComplete]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -90,10 +82,14 @@ export default function LessonPlayer({ nodeId, userId, onComplete }) {
         attemptData
       );
 
+      if (!completionResult.feedback.isCorrect) {
+        setConsecutiveErrors(prev => prev + 1);
+      }
+
       setResult(completionResult);
     } catch (error) {
       console.error('Submission failed:', error);
-      alert(`Error: ${error.message}`);
+      setResult({ success: false, feedback: { isCorrect: false, message: `Error: ${error.message}` }, progressUpdate: { xp: 0 } });
     } finally {
       setSubmitting(false);
     }
@@ -101,9 +97,7 @@ export default function LessonPlayer({ nodeId, userId, onComplete }) {
 
   const handleHint = () => {
     setHintsUsed(prev => prev + 1);
-    // v0.1: Just increment counter
-    // v0.2: Show actual hint text
-    alert('Hint feature coming in v0.2!\nFor now, this just tracks that you used a hint (affects your score).');
+    setHintVisible(true);
   };
 
   // Loading state
@@ -117,34 +111,17 @@ export default function LessonPlayer({ nodeId, userId, onComplete }) {
     );
   }
 
-  // No question (video lesson - skipped in v0.1)
+  // No question (video lesson placeholder)
   if (!question) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-slate-800/40 backdrop-blur-md rounded-2xl p-8 border border-slate-700/30 max-w-md text-center">
-          <p className="text-sky-300 text-lg mb-4">
-            📹 Video lessons coming in v0.2!
-          </p>
-          <p className="text-sky-400/70 text-sm mb-6">
-            For now, video lessons are skipped. Starting with interactive quizzes.
-          </p>
-          <button
-            onClick={() => onComplete({ success: true })}
-            className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition-colors"
-            style={{ minHeight: '44px' }}
-          >
-            Back to Dashboard
-          </button>
-        </div>
-      </div>
-    );
+    return <VideoPlaceholder node={node} onComplete={onComplete} />;
   }
 
   // Show result screen after submission
   if (result) {
     return (
-      <ResultScreen 
+      <FeedbackOrchestrator
         result={result}
+        consecutiveErrors={consecutiveErrors}
         timeElapsed={timeElapsed}
         onContinue={() => onComplete(result)}
       />
@@ -210,6 +187,28 @@ export default function LessonPlayer({ nodeId, userId, onComplete }) {
               disabled={submitting}
             />
 
+            {/* Hint Panel */}
+            {hintVisible && (
+              <div className="mt-4 p-4 bg-amber-900/20 border border-amber-500/30 rounded-lg text-amber-200 text-sm animate-[fadeIn_0.3s_ease-in]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-amber-400 mt-0.5">💡</span>
+                    <span>
+                      {question.hint || 'No hint available for this question. Think carefully about the key concepts!'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setHintVisible(false)}
+                    className="text-amber-400/60 hover:text-amber-200 transition-colors shrink-0 text-lg leading-none"
+                    aria-label="Close hint"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-4 mt-8">
               <button
@@ -241,6 +240,59 @@ export default function LessonPlayer({ nodeId, userId, onComplete }) {
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
+
+const VIDEO_MIN_SECONDS = 10;
+
+/**
+ * Video Lesson Placeholder
+ * Requires minimum time on screen before allowing completion.
+ */
+function VideoPlaceholder({ node, onComplete }) {
+  const [elapsed, setElapsed] = useState(0);
+  const canComplete = elapsed >= VIDEO_MIN_SECONDS;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsed(prev => {
+        if (prev >= VIDEO_MIN_SECONDS) {
+          clearInterval(timer);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const remaining = VIDEO_MIN_SECONDS - elapsed;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="bg-slate-800/40 backdrop-blur-md rounded-2xl p-8 border border-slate-700/30 max-w-md text-center">
+        <h1 className="text-2xl font-bold text-sky-100 mb-2">{node?.title}</h1>
+        <p className="text-sky-300 text-lg mb-4">
+          📹 Video lesson
+        </p>
+        <p className="text-sky-400/70 text-sm mb-6">
+          Real video coming in a future update. Review the topic, then continue.
+        </p>
+        {!canComplete && (
+          <p className="text-amber-300/80 text-sm mb-4">
+            Please spend at least {remaining}s on this lesson before continuing…
+          </p>
+        )}
+        <button
+          onClick={() => onComplete({ success: true })}
+          disabled={!canComplete}
+          className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ minHeight: '44px' }}
+        >
+          {canComplete ? 'Mark Complete & Continue' : `Wait ${remaining}s…`}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Question Input Component
@@ -318,83 +370,6 @@ function QuestionInput({ question, userAnswer, onChange, disabled }) {
     default:
       return <div className="text-red-300">Unknown question type: {question.questionType}</div>;
   }
-}
-
-/**
- * Result Screen Component
- * Shows feedback after submission with auto-navigation countdown
- */
-function ResultScreen({ result, timeElapsed, onContinue }) {
-  const [countdown, setCountdown] = useState(2);
-
-  useEffect(() => {
-    if (!result.feedback.isCorrect) return; // Only countdown for correct answers
-
-    const timer = setInterval(() => {
-      setCountdown(prev => prev - 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [result.feedback.isCorrect]);
-
-  const isCorrect = result.feedback.isCorrect;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-      <div className={`
-        bg-gradient-to-br backdrop-blur-md rounded-2xl p-8 border shadow-2xl max-w-md w-full text-center
-        ${isCorrect 
-          ? 'from-green-900/40 to-emerald-900/40 border-green-700/30' 
-          : 'from-red-900/40 to-orange-900/40 border-red-700/30'
-        }
-      `}>
-        {/* Icon */}
-        <div className="text-7xl mb-6">
-          {isCorrect ? '🎉' : '💭'}
-        </div>
-
-        {/* Feedback Message */}
-        <h2 className={`text-3xl font-bold mb-4 ${isCorrect ? 'text-green-100' : 'text-orange-100'}`}>
-          {isCorrect ? 'Correct!' : 'Not Quite'}
-        </h2>
-
-        <p className="text-lg text-sky-200 mb-8">
-          {result.feedback.message}
-        </p>
-
-        {/* Stats */}
-        <div className="bg-slate-900/30 rounded-lg p-4 mb-8">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-sky-300/70">Time Taken</p>
-              <p className="text-sky-100 font-semibold text-lg">{formatTime(timeElapsed)}</p>
-            </div>
-            <div>
-              <p className="text-sky-300/70">XP Earned</p>
-              <p className="text-amber-300 font-semibold text-lg">
-                +{result.feedback.isCorrect ? result.progressUpdate.xp : 0}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Continue Button / Countdown */}
-        {isCorrect ? (
-          <div className="text-sky-300/70 text-sm">
-            Continuing in {countdown}s...
-          </div>
-        ) : (
-          <button
-            onClick={onContinue}
-            className="w-full px-6 py-3 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-semibold rounded-lg transition-all shadow-lg"
-            style={{ minHeight: '44px' }}
-          >
-            Try Again or Continue
-          </button>
-        )}
-      </div>
-    </div>
-  );
 }
 
 // ============================================================================

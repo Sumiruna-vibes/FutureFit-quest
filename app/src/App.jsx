@@ -7,12 +7,12 @@
  * V0.2: Add React Router for proper URLs
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { EngineProvider } from './contexts/EngineContext';
 import Dashboard from './components/Dashboard';
 import LessonPlayer from './components/LessonPlayer';
 
-export default function App() {
+function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [currentLesson, setCurrentLesson] = useState(null);
   
@@ -36,7 +36,7 @@ export default function App() {
   };
 
   return (
-    <EngineProvider>
+    <>
       {currentView === 'dashboard' ? (
         <Dashboard onStartLesson={handleStartLesson} />
       ) : (
@@ -46,6 +46,14 @@ export default function App() {
           onComplete={handleLessonComplete}
         />
       )}
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <EngineProvider>
+      <AppContent />
     </EngineProvider>
   );
 }

@@ -80,7 +80,7 @@ export function EngineProvider({ children }) {
     //    instance can have its settings changed at runtime without
     //    being destroyed and recreated.
     const policyEngine = new PolicyEngine();
-    policyEngine.configure({ isDeveloper: true });
+    policyEngine.configure({ isDeveloper: false });
 
     // 5. SessionManager — orchestrates workflows between UI and engines
     //    Receives all engines via dependency injection

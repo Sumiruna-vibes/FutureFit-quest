@@ -38,11 +38,11 @@ const RESKILLING_TREE = [
         hasQuestion: false
     },
     
-    {
+   {
         id: 'module_1_quiz',
         title: 'Data vs. Information',
         type: 'quiz',
-        prerequisites: ['module_1_intro'],
+        prerequisites: [], // ← Now unlocked immediately
         
         // Question metadata for SessionManager validation
         hasQuestion: true,

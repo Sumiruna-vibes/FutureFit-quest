@@ -1,3 +1,4 @@
+q
 Hi Claude,
 
 We're standardizing the code layout so your next deliveries integrate cleanly.

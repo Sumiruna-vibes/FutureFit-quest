@@ -167,16 +167,15 @@ class SessionManager {
   async getCurrentProgress(userId) {
     const userHistory = this.eventManager.getUserHistory(userId);
     const progress = this.progressService.calculateUserState(userHistory);
-    
-    // Get completed nodes from history
+
     const completedNodes = this._getCompletedNodes(userHistory);
-    
-    // Find current/next node
+    const attemptedNodes = this._getAttemptedNodes(userHistory);
     const nextNode = this._getNextNode(completedNodes);
-    
+
     return {
       ...progress,
-      completedNodes: completedNodes,
+      completedNodes,
+      attemptedNodes,
       currentNode: nextNode
     };
   }
@@ -377,14 +376,31 @@ class SessionManager {
    */
   _getCompletedNodes(userHistory) {
     const completedSet = new Set();
-    
+
     userHistory.forEach(event => {
       if (event.type === 'QUIZ_ATTEMPT' && event.payload.isCorrect) {
         completedSet.add(event.payload.nodeId);
       }
     });
-    
+
     return Array.from(completedSet);
+  }
+
+  /**
+   * Extracts all node IDs that have at least one QUIZ_ATTEMPT event
+   * (regardless of correctness). Used for IN_PROGRESS visual state.
+   * @private
+   */
+  _getAttemptedNodes(userHistory) {
+    const attemptedSet = new Set();
+
+    userHistory.forEach(event => {
+      if (event.type === 'QUIZ_ATTEMPT') {
+        attemptedSet.add(event.payload.nodeId);
+      }
+    });
+
+    return Array.from(attemptedSet);
   }
 
   /**

@@ -22,21 +22,14 @@ class ProgressService {
      * Now with incremental support.
      */
     calculateUserState(eventHistory) {
-        // 1. Check cache first
-        if (this.cachedState && this._isCacheFresh(eventHistory)) {
-            return this.cachedState;
-        }
-
-        // 2. Start with a blank slate
         let state = {
             xp: 0,
-            completedNodes: [], // IDs of things finished
-            streak: 0
+            completedNodes: [],
+            streak: 0,
+            level: 1
         };
-
-        // 3. Replay only new events incrementally
-        const newEvents = this._getNewEvents(eventHistory);
-        const sortedEvents = newEvents.sort((a, b) => 
+        // Replay ALL events from beginning (event sourcing fundamentals)
+        const sortedEvents = [...eventHistory].sort((a, b) => 
             new Date(a.timestamp) - new Date(b.timestamp)
         );
 
@@ -44,9 +37,9 @@ class ProgressService {
             this._applyEventToState(state, event);
         }
 
-        // 4. Cache the result
-        this.cachedState = { ...state, version: '2025-01-11_derived_v1' };
-        this.cachedVersion = eventHistory[eventHistory.length - 1]?.id || null;
+        // Calculate level from XP
+        state.level = Math.floor(state.xp / 100) + 1;
+        state.xpToNextLevel = 100 - (state.xp % 100);
 
         return state;
     }
@@ -54,20 +47,13 @@ class ProgressService {
     // --- INTERNAL HELPERS ---
 
     _isCacheFresh(eventHistory) {
-        return this.cachedVersion === eventHistory[eventHistory.length - 1]?.id;
-    }
-
-    _getNewEvents(fullHistory) {
-        if (!this.cachedVersion || fullHistory.length === 0) return fullHistory;
-        const lastCachedIndex = fullHistory.findIndex(e => e.id === this.cachedVersion);
-        return lastCachedIndex === -1 ? fullHistory : fullHistory.slice(lastCachedIndex + 1);
     }
 
     _applyEventToState(state, event) {
         switch (event.type) {
             case 'QUIZ_ATTEMPT':
                 if (event.payload.isCorrect) {
-                    state.xp += (event.payload.xpEarned || 10);
+                    state.xp += (event.payload.scoreAwarded || 10);
                     state.streak++;
                     
                     // Mark as complete if not already
